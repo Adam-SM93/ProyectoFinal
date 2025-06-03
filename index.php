@@ -1,17 +1,20 @@
 <?php
 header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: https://tu-frontend.vercel.app');
+// Quitamos la URL fija de Vercel y permitimos cualquier origen para desarrollo:
+header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit;
 }
+
 $DB_HOST = getenv('DB_HOST');
 $DB_PORT = getenv('DB_PORT');
 $DB_NAME = getenv('DB_NAME');
 $DB_USER = getenv('DB_USER');
 $DB_PASS = getenv('DB_PASS');
+
 try {
     $pdo = new PDO(
         "pgsql:host=$DB_HOST;port=$DB_PORT;dbname=$DB_NAME;sslmode=require",
@@ -27,10 +30,12 @@ try {
     ]);
     exit;
 }
+
 function getJson() {
     $data = json_decode(file_get_contents('php://input'), true);
     return $data ?: [];
 }
+
 function validate($data, $fields) {
     $errors = [];
     foreach ($fields as $f) {
@@ -40,6 +45,7 @@ function validate($data, $fields) {
     }
     return $errors;
 }
+
 $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $method = $_SERVER['REQUEST_METHOD'];
 
@@ -70,6 +76,7 @@ switch (true) {
         $id = $stmt->fetchColumn();
         echo json_encode(['id_user'=>$id]);
         break;
+
     case $uri === '/login' && $method === 'POST':
         $input = getJson();
         $stmt = $pdo->prepare(
@@ -94,6 +101,7 @@ switch (true) {
         $jwt = "$header.$body.$sig";
         echo json_encode(['token'=>$jwt]);
         break;
+
     case $uri === '/rally/current' && $method === 'GET':
         $stmt = $pdo->prepare(
             'SELECT * FROM rallies
@@ -110,6 +118,7 @@ switch (true) {
         }
         echo json_encode($rally);
         break;
+
     case preg_match('#^/photos$#', $uri) && $method === 'GET':
         $state = $_GET['state']   ?? null;
         $rally = $_GET['rally_id']?? null;
@@ -121,6 +130,7 @@ switch (true) {
         $stmt->execute($params);
         echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
         break;
+
     case preg_match('#^/photos/(\d+)$#', $uri, $m) && $method === 'GET':
         $stmt = $pdo->prepare(
             'SELECT * FROM photography WHERE id_photo = :id'
@@ -134,6 +144,7 @@ switch (true) {
         }
         echo json_encode($photo);
         break;
+
     case $uri === '/photos' && $method === 'POST':
         $input = getJson();
         $errs = validate($input, ['id_user','title','file']);
@@ -160,6 +171,7 @@ switch (true) {
         ]);
         echo json_encode(['id_photo'=>$stmt->fetchColumn()]);
         break;
+
     case preg_match('#^/photos/(\d+)$#', $uri, $m) && $method === 'PUT':
         $input = getJson();
         $fields = []; $params = [':id'=>$m[1]];
@@ -176,11 +188,13 @@ switch (true) {
         $stmt->execute($params);
         echo json_encode(['updated'=>true]);
         break;
+
     case preg_match('#^/photos/(\d+)$#', $uri, $m) && $method === 'DELETE':
         $stmt = $pdo->prepare('DELETE FROM photography WHERE id_photo=:id');
         $stmt->execute([':id'=>$m[1]]);
         echo json_encode(['deleted'=>true]);
         break;
+
     case $uri === '/user_votes_control' && $method === 'POST':
         $in = getJson();
         $errs = validate($in,['id_user','id_rally','used_votes']);
@@ -200,6 +214,7 @@ switch (true) {
         ]);
         echo json_encode(['ok'=>true]);
         break;
+
     case $uri === '/anonymous_votes_control' && $method === 'POST':
         $in = getJson();
         $errs = validate($in,['id_rally','used_votes']);
@@ -221,6 +236,7 @@ switch (true) {
         ]);
         echo json_encode(['ok'=>true]);
         break;
+
     case preg_match('#^/photos/(\d+)/votes$#',$uri,$m) && $method==='GET':
         $id = $m[1];
         $st = $pdo->prepare(
@@ -230,6 +246,7 @@ switch (true) {
         $v = $st->fetchColumn();
         echo json_encode(['total_votes'=>$v]);
         break;
+
     case preg_match('#^/rankings$#',$uri) && $method==='GET':
         $r   = (int)($_GET['rally_id'] ?? 0);
         $lim = (int)($_GET['limit']    ?? 10);
@@ -244,6 +261,7 @@ switch (true) {
         $st->execute();
         echo json_encode($st->fetchAll(PDO::FETCH_ASSOC));
         break;
+
     default:
         http_response_code(404);
         echo json_encode(['error'=>'Recurso no encontrado']);

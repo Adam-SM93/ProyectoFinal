@@ -42,7 +42,13 @@ function validate($data, $fields) {
 }
 $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $method = $_SERVER['REQUEST_METHOD'];
+
 switch (true) {
+    // PRUEBA DE VIDA - Endpoint raíz
+    case $uri === '/' && $method === 'GET':
+        echo json_encode(['message' => 'API funcionando correctamente']);
+        break;
+
     case $uri === '/register' && $method === 'POST':
         $input = getJson();
         $errs = validate($input, ['name','email','password']);

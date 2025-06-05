@@ -1,6 +1,5 @@
 <?php
 header('Content-Type: application/json');
-// Quitamos la URL fija de Vercel y permitimos cualquier origen para desarrollo:
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
@@ -46,10 +45,153 @@ function validate($data, $fields) {
     return $errors;
 }
 
+function getAuthUser() {
+    $headers = getallheaders();
+    if (empty($headers['Authorization'])) {
+        return null;
+    }
+
+    $auth = $headers['Authorization'];
+    if (!preg_match('/^Bearer (.+)$/', $auth, $m)) {
+        return null;
+    }
+
+    $jwt = $m[1];
+    $parts = explode('.', $jwt);
+    if (count($parts) !== 3) {
+        return null;
+    }
+
+    $payload = json_decode(base64_decode($parts[1]), true);
+    if (!$payload || empty($payload['id_user']) || empty($payload['exp'])) {
+        return null;
+    }
+
+    if ($payload['exp'] < time()) {
+        return null;
+    }
+
+    $secret = getenv('JWT_SECRET');
+    $signature = base64_encode(hash_hmac('sha256', "$parts[0].$parts[1]", $secret, true));
+    if ($signature !== $parts[2]) {
+        return null;
+    }
+
+    return $payload;
+}
+
 $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $method = $_SERVER['REQUEST_METHOD'];
 
 switch (true) {
+    // Obtener datos del usuario autenticado
+    case $uri === '/user/profile' && $method === 'GET':
+        $auth = getAuthUser();
+        if (!$auth) {
+            http_response_code(401);
+            echo json_encode(['error' => 'No autorizado']);
+            break;
+        }
+
+        $stmt = $pdo->prepare(
+            'SELECT id_user, name, email, rol, creation_date 
+             FROM "user" 
+             WHERE id_user = :id'
+        );
+        $stmt->execute([':id' => $auth['id_user']]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$user) {
+            http_response_code(404);
+            echo json_encode(['error' => 'Usuario no encontrado']);
+            break;
+        }
+
+        echo json_encode($user);
+        break;
+
+    // Actualizar datos del usuario
+    case $uri === '/user/profile' && $method === 'PUT':
+        $auth = getAuthUser();
+        if (!$auth) {
+            http_response_code(401);
+            echo json_encode(['error' => 'No autorizado']);
+            break;
+        }
+
+        $input = getJson();
+        $fields = []; 
+        $params = [':id' => $auth['id_user']];
+
+        if (isset($input['name'])) {
+            $fields[] = 'name = :name';
+            $params[':name'] = $input['name'];
+        }
+        
+        if (isset($input['email'])) {
+            // Verificar que el email no esté en uso
+            $stmt = $pdo->prepare('SELECT id_user FROM "user" WHERE email = :email AND id_user != :id');
+            $stmt->execute([':email' => $input['email'], ':id' => $auth['id_user']]);
+            if ($stmt->fetch()) {
+                http_response_code(400);
+                echo json_encode(['error' => 'El email ya está en uso']);
+                break;
+            }
+            $fields[] = 'email = :email';
+            $params[':email'] = $input['email'];
+        }
+
+        if (isset($input['password'])) {
+            $fields[] = 'password = :pass';
+            $params[':pass'] = password_hash($input['password'], PASSWORD_BCRYPT);
+        }
+
+        if (empty($fields)) {
+            http_response_code(400);
+            echo json_encode(['error' => 'No hay datos para actualizar']);
+            break;
+        }
+
+        $sql = 'UPDATE "user" SET ' . implode(', ', $fields) . ' WHERE id_user = :id';
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+
+        echo json_encode(['updated' => true]);
+        break;
+
+    // Eliminar cuenta de usuario
+    case $uri === '/user/profile' && $method === 'DELETE':
+        $auth = getAuthUser();
+        if (!$auth) {
+            http_response_code(401);
+            echo json_encode(['error' => 'No autorizado']);
+            break;
+        }
+
+        // Comenzar transacción para eliminar datos relacionados
+        $pdo->beginTransaction();
+        try {
+            // Eliminar votos del usuario
+            $stmt = $pdo->prepare('DELETE FROM user_votes_control WHERE id_user = :id');
+            $stmt->execute([':id' => $auth['id_user']]);
+
+            // Actualizar fotos para mantener el registro pero sin usuario
+            $stmt = $pdo->prepare('UPDATE photography SET id_user = NULL WHERE id_user = :id');
+            $stmt->execute([':id' => $auth['id_user']]);
+
+            // Eliminar el usuario
+            $stmt = $pdo->prepare('DELETE FROM "user" WHERE id_user = :id');
+            $stmt->execute([':id' => $auth['id_user']]);
+
+            $pdo->commit();
+            echo json_encode(['deleted' => true]);
+        } catch (Exception $e) {
+            $pdo->rollBack();
+            http_response_code(500);
+            echo json_encode(['error' => 'Error al eliminar la cuenta']);
+        }
+        break;
+
     // PRUEBA DE VIDA - Endpoint raíz
     case $uri === '/' && $method === 'GET':
         echo json_encode(['message' => 'API funcionando correctamente']);

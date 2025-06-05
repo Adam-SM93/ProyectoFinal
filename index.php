@@ -81,6 +81,18 @@ function getAuthUser() {
 }
 
 $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+
+// Si la URL empieza con "/index.php", la recortamos
+$uri = preg_replace('#^/index\.php#', '', $uri);
+
+// Ahora, si la URL original era "/index.php/rally/current",
+// $uri pasará a ser "/rally/current", y hará match con tu switch.
+if ($uri === '') {
+    // Si la URL era exactamente "/index.php", dejamos "/"
+    $uri = '/';
+}
+
+
 $method = $_SERVER['REQUEST_METHOD'];
 
 switch (true) {

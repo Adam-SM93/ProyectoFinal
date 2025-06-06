@@ -1,4 +1,28 @@
 <?php
+// Desactivar la visualización de errores de PHP
+ini_set('display_errors', 0);
+error_reporting(E_ALL);
+
+// Configurar el manejador de errores personalizado
+set_error_handler(function($errno, $errstr, $errfile, $errline) {
+    http_response_code(500);
+    echo json_encode([
+        'error' => 'Error interno del servidor',
+        'details' => $errstr
+    ]);
+    exit;
+});
+
+// Configurar el manejador de excepciones no capturadas
+set_exception_handler(function($e) {
+    http_response_code(500);
+    echo json_encode([
+        'error' => 'Error interno del servidor',
+        'details' => $e->getMessage()
+    ]);
+    exit;
+});
+
 // Configuración de CORS - debe ir antes de cualquier salida
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     header('Access-Control-Allow-Origin: http://localhost:4200');
@@ -213,25 +237,44 @@ switch (true) {
         break;
 
     case $uri === '/register' && $method === 'POST':
-        $input = getJson();
-        $errs = validate($input, ['name','email','password']);
-        if ($errs) {
-            http_response_code(400);
-            echo json_encode(['errors'=>$errs]);
-            break;
+        try {
+            $input = getJson();
+            $errs = validate($input, ['name','email','password']);
+            
+            if ($errs) {
+                http_response_code(400);
+                echo json_encode(['errors' => $errs]);
+                break;
+            }
+
+            // Verificar si el email ya existe
+            $stmt = $pdo->prepare('SELECT id_user FROM "user" WHERE email = :email');
+            $stmt->execute([':email' => $input['email']]);
+            if ($stmt->fetch()) {
+                http_response_code(400);
+                echo json_encode(['errors' => ['El email ya está registrado']]);
+                break;
+            }
+
+            $stmt = $pdo->prepare(
+                'INSERT INTO "user" (name,email,password,rol,creation_date)
+                 VALUES (:name,:email,:pass, \'participant\', NOW())
+                 RETURNING id_user'
+            );
+            $stmt->execute([
+                ':name' => $input['name'],
+                ':email' => $input['email'],
+                ':pass' => password_hash($input['password'], PASSWORD_BCRYPT)
+            ]);
+            $id = $stmt->fetchColumn();
+            echo json_encode(['id_user' => $id]);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode([
+                'error' => 'Error al registrar el usuario',
+                'details' => $e->getMessage()
+            ]);
         }
-        $stmt = $pdo->prepare(
-            'INSERT INTO "user" (name,email,password,rol,creation_date)
-             VALUES (:name,:email,:pass, \'participant\', NOW())
-             RETURNING id_user'
-        );
-        $stmt->execute([
-            ':name'=>$input['name'],
-            ':email'=>$input['email'],
-            ':pass'=>password_hash($input['password'], PASSWORD_BCRYPT)
-        ]);
-        $id = $stmt->fetchColumn();
-        echo json_encode(['id_user'=>$id]);
         break;
 
     case $uri === '/login' && $method === 'POST':

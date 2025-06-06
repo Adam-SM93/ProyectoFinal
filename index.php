@@ -1,29 +1,51 @@
 <?php
-// Desactivar la visualización de errores de PHP
-ini_set('display_errors', 0);
+// Asegurarse de que los errores se manejen como JSON
+ini_set('display_errors', 'Off');
 error_reporting(E_ALL);
+
+// Establecer el tipo de contenido como JSON
+header('Content-Type: application/json; charset=utf-8');
+
+// Manejar errores fatales
+register_shutdown_function(function() {
+    $error = error_get_last();
+    if ($error !== null && in_array($error['type'], [E_ERROR, E_CORE_ERROR, E_COMPILE_ERROR, E_PARSE])) {
+        http_response_code(500);
+        echo json_encode([
+            'error' => 'Error fatal del servidor',
+            'message' => $error['message'],
+            'file' => $error['file'],
+            'line' => $error['line']
+        ]);
+        exit;
+    }
+});
 
 // Configurar el manejador de errores personalizado
 set_error_handler(function($errno, $errstr, $errfile, $errline) {
     http_response_code(500);
     echo json_encode([
-        'error' => 'Error interno del servidor',
-        'details' => $errstr
+        'error' => 'Error del servidor',
+        'message' => $errstr,
+        'file' => $errfile,
+        'line' => $errline
     ]);
     exit;
 });
 
-// Configurar el manejador de excepciones no capturadas
+// Configurar el manejador de excepciones
 set_exception_handler(function($e) {
     http_response_code(500);
     echo json_encode([
-        'error' => 'Error interno del servidor',
-        'details' => $e->getMessage()
+        'error' => 'Excepción no capturada',
+        'message' => $e->getMessage(),
+        'file' => $e->getFile(),
+        'line' => $e->getLine()
     ]);
     exit;
 });
 
-// Configuración de CORS - debe ir antes de cualquier salida
+// Configuración de CORS
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     header('Access-Control-Allow-Origin: http://localhost:4200');
     header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
@@ -33,7 +55,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
-header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: http://localhost:4200');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');

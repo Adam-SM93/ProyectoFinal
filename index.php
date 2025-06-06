@@ -301,8 +301,8 @@ switch (true) {
             }
 
             $stmt = $pdo->prepare(
-                'INSERT INTO "user" (name,email,password,rol,creation_date)
-                 VALUES (:name,:email,:pass, \'participant\', NOW())
+                'INSERT INTO "user" (name, email, password)
+                 VALUES (:name, :email, :pass)
                  RETURNING id_user'
             );
             
@@ -317,7 +317,6 @@ switch (true) {
             
         } catch (Exception $e) {
             http_response_code(500);
-            error_log($e->getMessage()); // Para ver el error en los logs de Render
             echo json_encode([
                 'error' => 'Error al registrar el usuario',
                 'message' => $e->getMessage()

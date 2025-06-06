@@ -62,8 +62,23 @@ try {
 }
 
 function getJson() {
-    $data = json_decode(file_get_contents('php://input'), true);
-    return $data ?: [];
+    $rawData = file_get_contents('php://input');
+    if ($rawData === false) {
+        return null;
+    }
+    
+    $data = json_decode($rawData, true);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        header('Content-Type: application/json');
+        http_response_code(400);
+        echo json_encode([
+            'error' => 'JSON inválido',
+            'details' => json_last_error_msg()
+        ]);
+        exit;
+    }
+    
+    return $data;
 }
 
 function validate($data, $fields) {
@@ -237,10 +252,18 @@ switch (true) {
         break;
 
     case $uri === '/register' && $method === 'POST':
+        header('Content-Type: application/json');
         try {
             $input = getJson();
-            $errs = validate($input, ['name','email','password']);
             
+            // Validar que recibimos los datos
+            if ($input === null) {
+                http_response_code(400);
+                echo json_encode(['error' => 'Datos de entrada inválidos']);
+                break;
+            }
+            
+            $errs = validate($input, ['name','email','password']);
             if ($errs) {
                 http_response_code(400);
                 echo json_encode(['errors' => $errs]);
@@ -252,7 +275,7 @@ switch (true) {
             $stmt->execute([':email' => $input['email']]);
             if ($stmt->fetch()) {
                 http_response_code(400);
-                echo json_encode(['errors' => ['El email ya está registrado']]);
+                echo json_encode(['error' => 'El email ya está registrado']);
                 break;
             }
 
@@ -261,18 +284,21 @@ switch (true) {
                  VALUES (:name,:email,:pass, \'participant\', NOW())
                  RETURNING id_user'
             );
+            
             $stmt->execute([
                 ':name' => $input['name'],
                 ':email' => $input['email'],
                 ':pass' => password_hash($input['password'], PASSWORD_BCRYPT)
             ]);
+            
             $id = $stmt->fetchColumn();
             echo json_encode(['id_user' => $id]);
+            
         } catch (Exception $e) {
             http_response_code(500);
             echo json_encode([
                 'error' => 'Error al registrar el usuario',
-                'details' => $e->getMessage()
+                'message' => $e->getMessage()
             ]);
         }
         break;

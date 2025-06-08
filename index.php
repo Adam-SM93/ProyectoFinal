@@ -24,7 +24,6 @@
         exit;
     }
 
-
     // Asegurarse de que los errores se manejen como JSON
     ini_set('display_errors', 'Off');
     error_reporting(E_ALL);
@@ -414,6 +413,62 @@
                 echo json_encode(['errors'=>$errs]);
                 break;
             }
+
+            // Obtener el rally activo y su configuración
+            $stmt = $pdo->prepare(
+                'SELECT c.max_photos_user 
+                FROM configuration c
+                INNER JOIN rallies r ON r.id_rally = c.id_rally
+                WHERE r.start_date <= CURRENT_DATE 
+                AND r.end_date >= CURRENT_DATE'
+            );
+            $stmt->execute();
+            $config = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$config) {
+                http_response_code(400);
+                echo json_encode(['error' => 'No hay un rally activo o no tiene configuración']);
+                break;
+            }
+
+            // Verificar si el usuario ha alcanzado el límite de fotos
+            $stmt = $pdo->prepare(
+                'SELECT COUNT(*) as photo_count 
+                FROM photography 
+                WHERE id_user = :user_id 
+                AND id_rally = :rally_id'
+            );
+            $stmt->execute([
+                ':user_id' => $input['id_user'],
+                ':rally_id' => $input['id_rally']
+            ]);
+            $count = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($count['photo_count'] >= $config['max_photos_user']) {
+                http_response_code(400);
+                echo json_encode(['error' => 'Has alcanzado el límite máximo de fotografías para este rally']);
+                break;
+            }
+
+            // Verificar si la foto ya existe (comparando el contenido)
+            $stmt = $pdo->prepare(
+                'SELECT COUNT(*) as duplicate_count 
+                FROM photography 
+                WHERE id_user = :user_id 
+                AND file = :file'
+            );
+            $stmt->execute([
+                ':user_id' => $input['id_user'],
+                ':file' => $input['file']
+            ]);
+            $duplicate = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($duplicate['duplicate_count'] > 0) {
+                http_response_code(400);
+                echo json_encode(['error' => 'Esta fotografía ya ha sido subida anteriormente']);
+                break;
+            }
+
             $stmt = $pdo->prepare(
                 'INSERT INTO photography
                 (id_user, title, description, file, id_rally)

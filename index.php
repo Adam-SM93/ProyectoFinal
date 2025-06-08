@@ -1,17 +1,29 @@
 <?php
-    // Configuración de CORS
-    header("Access-Control-Allow-Origin: *");
+    $allowed_origins = [
+        'https://proyecto-final-wine-two.vercel.app',
+        'http://localhost:4200'
+    ];
+    
+    $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+    
+    if (in_array($origin, $allowed_origins)) {
+        header("Access-Control-Allow-Origin: $origin");
+        header('Access-Control-Allow-Credentials: true');
+    } else {
+        // Opcional: rechazar o no poner Access-Control-Allow-Origin para otros orígenes
+        header('HTTP/1.1 403 Forbidden');
+        exit('Origen no permitido');
+    }
     
     header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
     header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
-    header('Access-Control-Max-Age: 86400'); // 24 horas
-    header('Access-Control-Allow-Credentials: false');  // Al usar '*', Credentials debe ser false
+    header('Access-Control-Max-Age: 86400');
     
-    // Manejar preflight requests
     if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
         http_response_code(200);
         exit;
     }
+
 
     // Asegurarse de que los errores se manejen como JSON
     ini_set('display_errors', 'Off');

@@ -244,30 +244,28 @@ switch (true) {
         }
     
         try {
-            $pdo->beginTransaction();
-        
             // Eliminar votos
             $stmt = $pdo->prepare('DELETE FROM user_votes_control WHERE id_user = :id');
             $stmt->execute([':id' => $auth['id_user']]);
-        
-            // No hacer UPDATE photography, ya lo hace la FK con ON DELETE SET NULL
-        
-            // Eliminar usuario (esto pone a NULL id_user en photography automáticamente)
+            error_log("user_votes_control affected rows: " . $stmt->rowCount());
+    
+            // Eliminar usuario (la FK en photography debería poner a NULL automáticamente)
             $stmt = $pdo->prepare('DELETE FROM "user" WHERE id_user = :id');
             $stmt->execute([':id' => $auth['id_user']]);
-        
-            $pdo->commit();
+            error_log("user affected rows: " . $stmt->rowCount());
+    
             echo json_encode(['deleted' => true]);
-        
+    
         } catch (Exception $e) {
-            $pdo->rollBack();
             http_response_code(500);
+            error_log("Error deleting account: " . $e->getMessage());
             echo json_encode([
                 'error' => 'Error al eliminar la cuenta',
                 'message' => $e->getMessage()
             ]);
-        }               
-        break;    
+        }
+        break;
+        
     
 
     // PRUEBA DE VIDA - Endpoint raíz

@@ -602,23 +602,37 @@ switch (true) {
         try {
             $pdo->beginTransaction();
 
-            // Eliminar votos del usuario
+            // Primero verificar si el usuario existe
+            $checkStmt = $pdo->prepare('SELECT id_user FROM "user" WHERE id_user = :id');
+            $checkStmt->execute([':id' => $userId]);
+            if (!$checkStmt->fetch()) {
+                throw new Exception('Usuario no encontrado');
+            }
+
+            // 1. Eliminar votos del usuario
             $stmt = $pdo->prepare('DELETE FROM user_votes_control WHERE id_user = :id');
-            $stmt->execute([':id' => $userId]);
+            if (!$stmt->execute([':id' => $userId])) {
+                throw new Exception('Error al eliminar votos: ' . implode(', ', $stmt->errorInfo()));
+            }
 
-            // Establecer NULL en las fotos del usuario
+            // 2. Actualizar las fotos para desvincularlas del usuario
             $stmt = $pdo->prepare('UPDATE photography SET id_user = NULL WHERE id_user = :id');
-            $stmt->execute([':id' => $userId]);
+            if (!$stmt->execute([':id' => $userId])) {
+                throw new Exception('Error al actualizar fotos: ' . implode(', ', $stmt->errorInfo()));
+            }
 
-            // Eliminar el usuario
+            // 3. Finalmente eliminar el usuario
             $stmt = $pdo->prepare('DELETE FROM "user" WHERE id_user = :id');
-            $stmt->execute([':id' => $userId]);
+            if (!$stmt->execute([':id' => $userId])) {
+                throw new Exception('Error al eliminar usuario: ' . implode(', ', $stmt->errorInfo()));
+            }
 
             $pdo->commit();
             echo json_encode(['deleted' => true]);
 
         } catch (Exception $e) {
             $pdo->rollBack();
+            error_log('Error en eliminación de usuario: ' . $e->getMessage());
             http_response_code(500);
             echo json_encode([
                 'error' => 'Error al eliminar el usuario',

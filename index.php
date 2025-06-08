@@ -558,7 +558,16 @@ switch (true) {
             }
             
             // Obtenemos la configuración del rally
-            $stmt = $pdo->prepare('SELECT * FROM configuration WHERE id_rally = :id');
+            $stmt = $pdo->prepare('
+                SELECT 
+                    id_config,
+                    max_photos_user,
+                    EXTRACT(DAY FROM upload_deadline) as upload_deadline,
+                    EXTRACT(DAY FROM voting_deadline) as voting_deadline,
+                    id_rally
+                FROM configuration 
+                WHERE id_rally = :id
+            ');
             $stmt->execute([':id' => $rally['id_rally']]);
             $config = $stmt->fetch(PDO::FETCH_ASSOC);
             

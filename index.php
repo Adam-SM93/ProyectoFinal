@@ -614,8 +614,8 @@ switch (true) {
             $stmt = $pdo->prepare('
                 UPDATE configuration 
                 SET max_photos_user = :max,
-                    upload_deadline = :upload || \' days\',
-                    voting_deadline = :voting || \' days\'
+                    upload_deadline = (:upload || \' days\')::interval,
+                    voting_deadline = (:voting || \' days\')::interval
                 WHERE id_rally = :rally
                 RETURNING id_config'
             );
@@ -632,7 +632,7 @@ switch (true) {
                 $stmt = $pdo->prepare('
                     INSERT INTO configuration 
                     (max_photos_user, upload_deadline, voting_deadline, id_rally)
-                    VALUES (:max, :upload || \' days\', :voting || \' days\', :rally)'
+                    VALUES (:max, (:upload || \' days\')::interval, (:voting || \' days\')::interval, :rally)'
                 );
                 
                 $stmt->execute([

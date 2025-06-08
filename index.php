@@ -371,17 +371,21 @@ switch (true) {
         $state = $_GET['state']   ?? null;
         $rally = $_GET['rally_id']?? null;
         
-        $stmt = $pdo->prepare(
-            'SELECT * FROM photography 
-             WHERE (:state IS NULL OR state = :state::photo_state)
-             AND (:rally_id IS NULL OR id_rally = :rally_id)'
-        );
-        
-        $stmt->execute([
-            ':state' => $state,
-            ':rally_id' => $rally
-        ]);
-        
+        $sql = 'SELECT * FROM photography WHERE 1=1';
+        $params = [];
+
+        if ($state !== null) {
+            $sql .= ' AND state = :state';
+            $params[':state'] = $state;
+        }
+
+        if ($rally !== null) {
+            $sql .= ' AND id_rally = :rally_id';
+            $params[':rally_id'] = $rally;
+        }
+
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
         echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
         break;
 

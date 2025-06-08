@@ -532,6 +532,55 @@ switch (true) {
         }
         break;
 
+    case $uri === '/admin/users' && $method === 'PUT':
+        $auth = getAuthUser();
+        if (!$auth || $auth['rol'] !== 'administrador') {
+            http_response_code(403);
+            echo json_encode(['error' => 'Forbidden']);
+            break;
+        }
+
+        $input = getJson();
+        if (!$input || empty($input['id_user'])) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Datos inválidos']);
+            break;
+        }
+
+        $fields = []; 
+        $params = [':id' => $input['id_user']];
+
+        if (isset($input['name'])) {
+            $fields[] = 'name = :name';
+            $params[':name'] = $input['name'];
+        }
+        
+        if (isset($input['email'])) {
+            // Verificar que el email no esté en uso por otro usuario
+            $stmt = $pdo->prepare('SELECT id_user FROM "user" WHERE email = :email AND id_user != :id');
+            $stmt->execute([':email' => $input['email'], ':id' => $input['id_user']]);
+            if ($stmt->fetch()) {
+                http_response_code(400);
+                echo json_encode(['error' => 'El email ya está en uso']);
+                break;
+            }
+            $fields[] = 'email = :email';
+            $params[':email'] = $input['email'];
+        }
+
+        if (empty($fields)) {
+            http_response_code(400);
+            echo json_encode(['error' => 'No hay datos para actualizar']);
+            break;
+        }
+
+        $sql = 'UPDATE "user" SET ' . implode(', ', $fields) . ' WHERE id_user = :id';
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+
+        echo json_encode(['updated' => true]);
+        break;
+
     case $uri === '/rally/config' && $method === 'GET':
         $auth = getAuthUser();
         if (!$auth || $auth['rol'] !== 'administrador') {

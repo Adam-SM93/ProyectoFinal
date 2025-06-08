@@ -452,6 +452,230 @@
             echo json_encode(['deleted'=>true]);
             break;
 
+        case $uri === '/admin/users' && $method === 'GET':
+            $auth = getAuthUser();
+            if (!$auth || $auth['rol'] !== 'administrador') {
+                http_response_code(403);
+                echo json_encode(['error' => 'Forbidden']);
+                break;
+            }
+            
+            try {
+                $stmt = $pdo->query('SELECT id_user, name, email, rol, creation_date FROM "user"');
+                $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                echo json_encode($users);
+            } catch (Exception $e) {
+                http_response_code(500);
+                echo json_encode([
+                    'error' => 'Error al obtener usuarios',
+                    'message' => $e->getMessage()
+                ]);
+            }
+            break;
+
+        case $uri === '/admin/users' && $method === 'PUT':
+            $auth = getAuthUser();
+            if (!$auth || $auth['rol'] !== 'administrador') {
+                http_response_code(403);
+                echo json_encode(['error' => 'Forbidden']);
+                break;
+            }
+
+            $input = getJson();
+            if (!$input || empty($input['id_user'])) {
+                http_response_code(400);
+                echo json_encode(['error' => 'Datos inválidos']);
+                break;
+            }
+
+            $fields = []; 
+            $params = [':id' => $input['id_user']];
+
+            if (isset($input['name'])) {
+                $fields[] = 'name = :name';
+                $params[':name'] = $input['name'];
+            }
+            
+            if (isset($input['email'])) {
+                // Verificar que el email no esté en uso por otro usuario
+                $stmt = $pdo->prepare('SELECT id_user FROM "user" WHERE email = :email AND id_user != :id');
+                $stmt->execute([':email' => $input['email'], ':id' => $input['id_user']]);
+                if ($stmt->fetch()) {
+                    http_response_code(400);
+                    echo json_encode(['error' => 'El email ya está en uso']);
+                    break;
+                }
+                $fields[] = 'email = :email';
+                $params[':email'] = $input['email'];
+            }
+
+            if (empty($fields)) {
+                http_response_code(400);
+                echo json_encode(['error' => 'No hay datos para actualizar']);
+                break;
+            }
+
+            try {
+                $sql = 'UPDATE "user" SET ' . implode(', ', $fields) . ' WHERE id_user = :id';
+                $stmt = $pdo->prepare($sql);
+                $stmt->execute($params);
+
+                echo json_encode(['updated' => true]);
+            } catch (Exception $e) {
+                http_response_code(500);
+                echo json_encode([
+                    'error' => 'Error al actualizar el usuario',
+                    'message' => $e->getMessage()
+                ]);
+            }
+            break;
+
+        case preg_match('#^/admin/users/(\d+)$#', $uri, $matches) && $method === 'DELETE':
+            $auth = getAuthUser();
+            if (!$auth || $auth['rol'] !== 'administrador') {
+                http_response_code(403);
+                echo json_encode(['error' => 'Forbidden']);
+                break;
+            }
+
+            $userId = $matches[1];
+            
+            try {
+                // Eliminar usuario
+                $stmt = $pdo->prepare('DELETE FROM "user" WHERE id_user = :id');
+                $stmt->execute([':id' => $userId]);
+                echo json_encode(['deleted' => true]);
+            } catch (Exception $e) {
+                http_response_code(500);
+                error_log("Error deleting account: " . $e->getMessage());
+                echo json_encode([
+                    'error' => 'Error al eliminar la cuenta',
+                    'message' => $e->getMessage()
+                ]);
+            }
+            break;
+
+        case $uri === '/rally/config' && $method === 'GET':
+            $auth = getAuthUser();
+            if (!$auth || $auth['rol'] !== 'administrador') {
+                http_response_code(403);
+                echo json_encode(['error' => 'Forbidden']);
+                break;
+            }
+
+            try {
+                // Primero obtenemos el rally activo
+                $stmt = $pdo->prepare(
+                    'SELECT id_rally FROM rallies 
+                    WHERE start_date <= CURRENT_DATE 
+                    AND end_date >= CURRENT_DATE 
+                    LIMIT 1'
+                );
+                $stmt->execute();
+                $rally = $stmt->fetch(PDO::FETCH_ASSOC);
+                
+                if (!$rally) {
+                    http_response_code(404);
+                    echo json_encode(['error' => 'No hay un rally activo']);
+                    break;
+                }
+                
+                // Obtenemos la configuración del rally
+                $stmt = $pdo->prepare('
+                    SELECT 
+                        id_config,
+                        max_photos_user,
+                        EXTRACT(DAY FROM upload_deadline) as upload_deadline,
+                        EXTRACT(DAY FROM voting_deadline) as voting_deadline,
+                        id_rally
+                    FROM configuration 
+                    WHERE id_rally = :id'
+                );
+                $stmt->execute([':id' => $rally['id_rally']]);
+                $config = $stmt->fetch(PDO::FETCH_ASSOC);
+                
+                if (!$config) {
+                    http_response_code(404);
+                    echo json_encode(['error' => 'Configuración no encontrada']);
+                    break;
+                }
+                
+                echo json_encode($config);
+            } catch (Exception $e) {
+                http_response_code(500);
+                echo json_encode([
+                    'error' => 'Error al obtener la configuración',
+                    'message' => $e->getMessage()
+                ]);
+            }
+            break;
+
+        case $uri === '/rally/config' && $method === 'PUT':
+            $auth = getAuthUser();
+            if (!$auth || $auth['rol'] !== 'administrador') {
+                http_response_code(403);
+                echo json_encode(['error' => 'Forbidden']);
+                break;
+            }
+
+            try {
+                $input = getJson();
+                if (!$input) {
+                    http_response_code(400);
+                    echo json_encode(['error' => 'Datos inválidos']);
+                    break;
+                }
+
+                $errs = validate($input, ['max_photos_user', 'upload_deadline', 'voting_deadline', 'id_rally']);
+                if ($errs) {
+                    http_response_code(400);
+                    echo json_encode(['errors' => $errs]);
+                    break;
+                }
+
+                // Convertir los días a intervalos PostgreSQL
+                $stmt = $pdo->prepare('
+                    UPDATE configuration 
+                    SET max_photos_user = :max,
+                        upload_deadline = (:upload || \' days\')::interval,
+                        voting_deadline = (:voting || \' days\')::interval
+                    WHERE id_rally = :rally
+                    RETURNING id_config'
+                );
+                
+                $stmt->execute([
+                    ':max' => $input['max_photos_user'],
+                    ':upload' => $input['upload_deadline'],
+                    ':voting' => $input['voting_deadline'],
+                    ':rally' => $input['id_rally']
+                ]);
+
+                if (!$stmt->fetch()) {
+                    // Si no existe, crear nueva configuración
+                    $stmt = $pdo->prepare('
+                        INSERT INTO configuration 
+                        (max_photos_user, upload_deadline, voting_deadline, id_rally)
+                        VALUES (:max, (:upload || \' days\')::interval, (:voting || \' days\')::interval, :rally)'
+                    );
+                    
+                    $stmt->execute([
+                        ':max' => $input['max_photos_user'],
+                        ':upload' => $input['upload_deadline'],
+                        ':voting' => $input['voting_deadline'],
+                        ':rally' => $input['id_rally']
+                    ]);
+                }
+
+                echo json_encode(['updated' => true]);
+            } catch (Exception $e) {
+                http_response_code(500);
+                echo json_encode([
+                    'error' => 'Error al actualizar la configuración',
+                    'message' => $e->getMessage()
+                ]);
+            }
+            break;
+
         default:
             http_response_code(404);
             echo json_encode(['error'=>'Recurso no encontrado']);

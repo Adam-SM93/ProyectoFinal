@@ -73,9 +73,6 @@ try {
         $DB_PASS,
         [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
     );
-    
-    // Limpiar el caché de planes de consulta
-    $pdo->exec('DEALLOCATE ALL');
 } catch (Exception $e) {
     http_response_code(500);
     echo json_encode([
@@ -376,7 +373,7 @@ switch (true) {
         
         $stmt = $pdo->prepare(
             'SELECT * FROM photography 
-             WHERE (:state IS NULL OR state = :state)
+             WHERE (:state IS NULL OR state = :state::photo_state)
              AND (:rally_id IS NULL OR id_rally = :rally_id)'
         );
         

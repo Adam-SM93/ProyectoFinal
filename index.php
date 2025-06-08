@@ -589,6 +589,44 @@ switch (true) {
         }
         break;
 
+    case preg_match('#^/admin/users/(\d+)$#', $uri, $matches) && $method === 'DELETE':
+        $auth = getAuthUser();
+        if (!$auth || $auth['rol'] !== 'administrador') {
+            http_response_code(403);
+            echo json_encode(['error' => 'Forbidden']);
+            break;
+        }
+
+        $userId = $matches[1];
+        
+        try {
+            $pdo->beginTransaction();
+
+            // Eliminar votos del usuario
+            $stmt = $pdo->prepare('DELETE FROM user_votes_control WHERE id_user = :id');
+            $stmt->execute([':id' => $userId]);
+
+            // Establecer NULL en las fotos del usuario
+            $stmt = $pdo->prepare('UPDATE photography SET id_user = NULL WHERE id_user = :id');
+            $stmt->execute([':id' => $userId]);
+
+            // Eliminar el usuario
+            $stmt = $pdo->prepare('DELETE FROM "user" WHERE id_user = :id');
+            $stmt->execute([':id' => $userId]);
+
+            $pdo->commit();
+            echo json_encode(['deleted' => true]);
+
+        } catch (Exception $e) {
+            $pdo->rollBack();
+            http_response_code(500);
+            echo json_encode([
+                'error' => 'Error al eliminar el usuario',
+                'message' => $e->getMessage()
+            ]);
+        }
+        break;
+
     case $uri === '/rally/config' && $method === 'GET':
         $auth = getAuthUser();
         if (!$auth || $auth['rol'] !== 'administrador') {

@@ -406,17 +406,18 @@ switch (true) {
         }
         $stmt = $pdo->prepare(
             'INSERT INTO photography
-             (id_user,title,description,file,state,upload_date,total_votes,id_rally)
-             VALUES (:u,:t,:d,:f,\'pending\',NOW(),0,:r)
+             (id_user, title, description, file, id_rally)
+             VALUES (:u, :t, :d, :f, :r)
              RETURNING id_photo'
         );
+        
         $stmt->execute([
-            ':u'=>$input['id_user'],
-            ':t'=>$input['title'],
-            ':d'=>$input['description'] ?? '',
-            ':f'=>$input['file'],
-            ':r'=>$input['id_rally']
-        ]);
+            ':u' => $input['id_user'],
+            ':t' => $input['title'],
+            ':d' => $input['description'] ?? '',
+            ':f' => $input['file'],
+            ':r' => $input['id_rally']
+        ]);        
         echo json_encode(['id_photo'=>$stmt->fetchColumn()]);
         break;
 

@@ -246,32 +246,15 @@ switch (true) {
         try {
             $pdo->beginTransaction();
         
-            // 1. Eliminar los votos
-            try {
-                $stmt = $pdo->prepare('DELETE FROM user_votes_control WHERE id_user = :id');
-                $stmt->execute([':id' => $auth['id_user']]);
-                error_log("✅ user_votes_control OK");
-            } catch (Exception $e) {
-                throw new Exception("❌ ERROR en user_votes_control: " . $e->getMessage());
-            }
+            // Eliminar votos
+            $stmt = $pdo->prepare('DELETE FROM user_votes_control WHERE id_user = :id');
+            $stmt->execute([':id' => $auth['id_user']]);
         
-            // 2. Anonimizar fotos
-            try {
-                $stmt = $pdo->prepare('UPDATE photography SET id_user = NULL WHERE id_user = :id');
-                $stmt->execute([':id' => $auth['id_user']]);
-                error_log("✅ photography OK");
-            } catch (Exception $e) {
-                throw new Exception("❌ ERROR en photography: " . $e->getMessage());
-            }
+            // No hacer UPDATE photography, ya lo hace la FK con ON DELETE SET NULL
         
-            // 3. Eliminar usuario
-            try {
-                $stmt = $pdo->prepare('DELETE FROM "user" WHERE id_user = :id');
-                $stmt->execute([':id' => $auth['id_user']]);
-                error_log("✅ user OK");
-            } catch (Exception $e) {
-                throw new Exception("❌ ERROR en user: " . $e->getMessage());
-            }
+            // Eliminar usuario (esto pone a NULL id_user en photography automáticamente)
+            $stmt = $pdo->prepare('DELETE FROM "user" WHERE id_user = :id');
+            $stmt->execute([':id' => $auth['id_user']]);
         
             $pdo->commit();
             echo json_encode(['deleted' => true]);
@@ -283,7 +266,7 @@ switch (true) {
                 'error' => 'Error al eliminar la cuenta',
                 'message' => $e->getMessage()
             ]);
-        }        
+        }               
         break;    
     
 

@@ -614,9 +614,9 @@
 
         case $uri === '/rally/config' && $method === 'GET':
             $auth = getAuthUser();
-            if (!$auth || $auth['rol'] !== 'administrador') {
-                http_response_code(403);
-                echo json_encode(['error' => 'Forbidden']);
+            if (!$auth) {
+                http_response_code(401);
+                echo json_encode(['error' => 'No autorizado']);
                 break;
             }
 

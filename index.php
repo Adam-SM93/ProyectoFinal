@@ -511,6 +511,73 @@ switch (true) {
         echo json_encode($st->fetchAll(PDO::FETCH_ASSOC));
         break;
 
+    case $uri === '/admin/users' && $method === 'GET':
+        $auth = getAuthUser();
+        if (!$auth || $auth['rol'] !== 'administrador') {
+            http_response_code(403);
+            echo json_encode(['error' => 'Forbidden']);
+            break;
+        }
+        
+        try {
+            $stmt = $pdo->query('SELECT id_user, name, email, rol, creation_date FROM "user"');
+            $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            echo json_encode($users);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode([
+                'error' => 'Error al obtener usuarios',
+                'message' => $e->getMessage()
+            ]);
+        }
+        break;
+
+    case $uri === '/rally/config' && $method === 'GET':
+        $auth = getAuthUser();
+        if (!$auth || $auth['rol'] !== 'administrador') {
+            http_response_code(403);
+            echo json_encode(['error' => 'Forbidden']);
+            break;
+        }
+
+        try {
+            // Primero obtenemos el rally activo
+            $stmt = $pdo->prepare(
+                'SELECT id_rally FROM rallies 
+                 WHERE start_date <= CURRENT_DATE 
+                 AND end_date >= CURRENT_DATE 
+                 LIMIT 1'
+            );
+            $stmt->execute();
+            $rally = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$rally) {
+                http_response_code(404);
+                echo json_encode(['error' => 'No hay un rally activo']);
+                break;
+            }
+            
+            // Obtenemos la configuración del rally
+            $stmt = $pdo->prepare('SELECT * FROM configuration WHERE id_rally = :id');
+            $stmt->execute([':id' => $rally['id_rally']]);
+            $config = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$config) {
+                http_response_code(404);
+                echo json_encode(['error' => 'Configuración no encontrada']);
+                break;
+            }
+            
+            echo json_encode($config);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode([
+                'error' => 'Error al obtener la configuración',
+                'message' => $e->getMessage()
+            ]);
+        }
+        break;
+
     default:
         http_response_code(404);
         echo json_encode(['error'=>'Recurso no encontrado']);

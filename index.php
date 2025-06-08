@@ -574,11 +574,19 @@ switch (true) {
             break;
         }
 
-        $sql = 'UPDATE "user" SET ' . implode(', ', $fields) . ' WHERE id_user = :id';
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute($params);
+        try {
+            $sql = 'UPDATE "user" SET ' . implode(', ', $fields) . ' WHERE id_user = :id';
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
 
-        echo json_encode(['updated' => true]);
+            echo json_encode(['updated' => true]);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode([
+                'error' => 'Error al actualizar el usuario',
+                'message' => $e->getMessage()
+            ]);
+        }
         break;
 
     case $uri === '/rally/config' && $method === 'GET':

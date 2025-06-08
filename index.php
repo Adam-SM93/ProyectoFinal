@@ -245,37 +245,37 @@ switch (true) {
     
         try {
             $pdo->beginTransaction();
-    
+        
             // 1. Eliminar los votos
             try {
                 $stmt = $pdo->prepare('DELETE FROM user_votes_control WHERE id_user = :id');
                 $stmt->execute([':id' => $auth['id_user']]);
                 error_log("✅ user_votes_control OK");
             } catch (Exception $e) {
-                throw new Exception("❌ Error al borrar votos: " . $e->getMessage());
+                throw new Exception("❌ ERROR en user_votes_control: " . $e->getMessage());
             }
-    
+        
             // 2. Anonimizar fotos
             try {
                 $stmt = $pdo->prepare('UPDATE photography SET id_user = NULL WHERE id_user = :id');
                 $stmt->execute([':id' => $auth['id_user']]);
                 error_log("✅ photography OK");
             } catch (Exception $e) {
-                throw new Exception("❌ Error al anonimizar fotos: " . $e->getMessage());
+                throw new Exception("❌ ERROR en photography: " . $e->getMessage());
             }
-    
-            // 3. Borrar usuario
+        
+            // 3. Eliminar usuario
             try {
                 $stmt = $pdo->prepare('DELETE FROM "user" WHERE id_user = :id');
                 $stmt->execute([':id' => $auth['id_user']]);
                 error_log("✅ user OK");
             } catch (Exception $e) {
-                throw new Exception("❌ Error al eliminar usuario: " . $e->getMessage());
+                throw new Exception("❌ ERROR en user: " . $e->getMessage());
             }
-    
+        
             $pdo->commit();
             echo json_encode(['deleted' => true]);
-    
+        
         } catch (Exception $e) {
             $pdo->rollBack();
             http_response_code(500);
@@ -283,7 +283,7 @@ switch (true) {
                 'error' => 'Error al eliminar la cuenta',
                 'message' => $e->getMessage()
             ]);
-        }
+        }        
         break;    
     
 

@@ -242,24 +242,25 @@ switch (true) {
             echo json_encode(['error' => 'No autorizado']);
             break;
         }
-
-        // Comenzar transacción para eliminar datos relacionados
-        $pdo->beginTransaction();
+    
         try {
-            // Eliminar votos del usuario
+            $pdo->beginTransaction();
+    
+            // 1. Eliminar los votos del usuario
             $stmt = $pdo->prepare('DELETE FROM user_votes_control WHERE id_user = :id');
             $stmt->execute([':id' => $auth['id_user']]);
-
-            // Actualizar fotos para mantener el registro pero sin usuario
+    
+            // 2. Anonimizar las fotos del usuario (para mantener el contenido pero sin relación directa)
             $stmt = $pdo->prepare('UPDATE photography SET id_user = NULL WHERE id_user = :id');
             $stmt->execute([':id' => $auth['id_user']]);
-
-            // Eliminar el usuario
+    
+            // 3. Eliminar el propio usuario
             $stmt = $pdo->prepare('DELETE FROM "user" WHERE id_user = :id');
             $stmt->execute([':id' => $auth['id_user']]);
-
+    
             $pdo->commit();
             echo json_encode(['deleted' => true]);
+    
         } catch (Exception $e) {
             $pdo->rollBack();
             http_response_code(500);
@@ -267,8 +268,9 @@ switch (true) {
                 'error' => 'Error al eliminar la cuenta',
                 'message' => $e->getMessage()
             ]);
-        }        
+        }
         break;
+    
 
     // PRUEBA DE VIDA - Endpoint raíz
     case $uri === '/' && $method === 'GET':

@@ -263,8 +263,11 @@ switch (true) {
         } catch (Exception $e) {
             $pdo->rollBack();
             http_response_code(500);
-            echo json_encode(['error' => 'Error al eliminar la cuenta']);
-        }
+            echo json_encode([
+                'error' => 'Error al eliminar la cuenta',
+                'message' => $e->getMessage()
+            ]);
+        }        
         break;
 
     // PRUEBA DE VIDA - Endpoint raíz

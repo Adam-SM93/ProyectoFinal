@@ -1,8 +1,20 @@
-    <?php
+<?php
     // Configuración de CORS
-    header('Access-Control-Allow-Origin: *');  // En producción, cambiar * por http://localhost:4200
+    $allowed_origin = 'http://localhost:4200';
+    
+    // Obtener el Origin de la petición
+    $origin = isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : '';
+    
+    // Si el origin coincide con el permitido, lo usamos, sino usamos el default
+    if ($origin === $allowed_origin) {
+        header("Access-Control-Allow-Origin: {$origin}");
+    } else {
+        header("Access-Control-Allow-Origin: {$allowed_origin}");
+    }
+    
     header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-    header('Access-Control-Allow-Headers: Content-Type, Authorization');
+    header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
+    header('Access-Control-Max-Age: 86400'); // 24 horas
     header('Access-Control-Allow-Credentials: true');
 
     // Manejar preflight requests

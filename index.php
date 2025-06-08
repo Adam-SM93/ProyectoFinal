@@ -587,6 +587,72 @@ switch (true) {
         }
         break;
 
+    case $uri === '/rally/config' && $method === 'PUT':
+        $auth = getAuthUser();
+        if (!$auth || $auth['rol'] !== 'administrador') {
+            http_response_code(403);
+            echo json_encode(['error' => 'Forbidden']);
+            break;
+        }
+
+        try {
+            $input = getJson();
+            if (!$input) {
+                http_response_code(400);
+                echo json_encode(['error' => 'Datos inválidos']);
+                break;
+            }
+
+            $errs = validate($input, ['max_photos_user', 'upload_deadline', 'voting_deadline', 'id_rally']);
+            if ($errs) {
+                http_response_code(400);
+                echo json_encode(['errors' => $errs]);
+                break;
+            }
+
+            // Convertir los días a intervalos PostgreSQL
+            $stmt = $pdo->prepare('
+                UPDATE configuration 
+                SET max_photos_user = :max,
+                    upload_deadline = :upload || \' days\',
+                    voting_deadline = :voting || \' days\'
+                WHERE id_rally = :rally
+                RETURNING id_config'
+            );
+            
+            $stmt->execute([
+                ':max' => $input['max_photos_user'],
+                ':upload' => $input['upload_deadline'],
+                ':voting' => $input['voting_deadline'],
+                ':rally' => $input['id_rally']
+            ]);
+
+            if (!$stmt->fetch()) {
+                // Si no existe, crear nueva configuración
+                $stmt = $pdo->prepare('
+                    INSERT INTO configuration 
+                    (max_photos_user, upload_deadline, voting_deadline, id_rally)
+                    VALUES (:max, :upload || \' days\', :voting || \' days\', :rally)'
+                );
+                
+                $stmt->execute([
+                    ':max' => $input['max_photos_user'],
+                    ':upload' => $input['upload_deadline'],
+                    ':voting' => $input['voting_deadline'],
+                    ':rally' => $input['id_rally']
+                ]);
+            }
+
+            echo json_encode(['updated' => true]);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode([
+                'error' => 'Error al actualizar la configuración',
+                'message' => $e->getMessage()
+            ]);
+        }
+        break;
+
     default:
         http_response_code(404);
         echo json_encode(['error'=>'Recurso no encontrado']);

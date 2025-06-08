@@ -474,28 +474,6 @@ switch (true) {
         echo json_encode(['ok'=>true]);
         break;
 
-    case $uri === '/anonymous_votes_control' && $method === 'POST':
-        $in = getJson();
-        $errs = validate($in,['id_rally','used_votes']);
-        if ($errs) {
-            http_response_code(400);
-            echo json_encode(['errors'=>$errs]);
-            break;
-        }
-        $st = $pdo->prepare(
-            'INSERT INTO anonymous_votes_control
-             (cookie_id,ip_direction,id_rally,used_votes)
-             VALUES(:c,:ip,:r,:v)'
-        );
-        $st->execute([
-            ':c'=>$in['cookie_id'] ?? '',
-            ':ip'=>$_SERVER['REMOTE_ADDR'],
-            ':r'=>$in['id_rally'],
-            ':v'=>$in['used_votes']
-        ]);
-        echo json_encode(['ok'=>true]);
-        break;
-
     case preg_match('#^/photos/(\d+)/votes$#',$uri,$m) && $method==='GET':
         $id = $m[1];
         $st = $pdo->prepare(

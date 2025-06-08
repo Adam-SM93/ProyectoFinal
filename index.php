@@ -246,17 +246,32 @@ switch (true) {
         try {
             $pdo->beginTransaction();
     
-            // 1. Eliminar los votos del usuario
-            $stmt = $pdo->prepare('DELETE FROM user_votes_control WHERE id_user = :id');
-            $stmt->execute([':id' => $auth['id_user']]);
+            // 1. Eliminar los votos
+            try {
+                $stmt = $pdo->prepare('DELETE FROM user_votes_control WHERE id_user = :id');
+                $stmt->execute([':id' => $auth['id_user']]);
+                error_log("✅ user_votes_control OK");
+            } catch (Exception $e) {
+                throw new Exception("❌ Error al borrar votos: " . $e->getMessage());
+            }
     
-            // 2. Anonimizar las fotos del usuario (para mantener el contenido pero sin relación directa)
-            $stmt = $pdo->prepare('UPDATE photography SET id_user = NULL WHERE id_user = :id');
-            $stmt->execute([':id' => $auth['id_user']]);
+            // 2. Anonimizar fotos
+            try {
+                $stmt = $pdo->prepare('UPDATE photography SET id_user = NULL WHERE id_user = :id');
+                $stmt->execute([':id' => $auth['id_user']]);
+                error_log("✅ photography OK");
+            } catch (Exception $e) {
+                throw new Exception("❌ Error al anonimizar fotos: " . $e->getMessage());
+            }
     
-            // 3. Eliminar el propio usuario
-            $stmt = $pdo->prepare('DELETE FROM "user" WHERE id_user = :id');
-            $stmt->execute([':id' => $auth['id_user']]);
+            // 3. Borrar usuario
+            try {
+                $stmt = $pdo->prepare('DELETE FROM "user" WHERE id_user = :id');
+                $stmt->execute([':id' => $auth['id_user']]);
+                error_log("✅ user OK");
+            } catch (Exception $e) {
+                throw new Exception("❌ Error al eliminar usuario: " . $e->getMessage());
+            }
     
             $pdo->commit();
             echo json_encode(['deleted' => true]);
@@ -269,7 +284,7 @@ switch (true) {
                 'message' => $e->getMessage()
             ]);
         }
-        break;
+        break;    
     
 
     // PRUEBA DE VIDA - Endpoint raíz

@@ -163,7 +163,6 @@
         $uri = '/';
     }
 
-    // Normalizar las rutas para que funcionen tanto con /rally como con /rallies
     $uri = str_replace('/rallies/', '/rally/', $uri);
 
     $method = $_SERVER['REQUEST_METHOD'];
@@ -214,7 +213,6 @@
             }
             
             if (isset($input['email'])) {
-                // Verificar que el email no esté en uso
                 $stmt = $pdo->prepare('SELECT id_user FROM "user" WHERE email = :email AND id_user != :id');
                 $stmt->execute([':email' => $input['email'], ':id' => $auth['id_user']]);
                 if ($stmt->fetch()) {
@@ -267,7 +265,6 @@
             }
             break;
 
-        // PRUEBA DE VIDA - Endpoint raíz
         case $uri === '/' && $method === 'GET':
             echo json_encode(['message' => 'API funcionando correctamente']);
             break;
@@ -277,7 +274,6 @@
             try {
                 $input = getJson();
                 
-                // Validar que recibimos los datos
                 if ($input === null) {
                     http_response_code(400);
                     echo json_encode(['error' => 'Datos de entrada inválidos']);

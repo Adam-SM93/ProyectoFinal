@@ -600,42 +600,23 @@ switch (true) {
         $userId = $matches[1];
         
         try {
-            $pdo->beginTransaction();
-
-            // Primero verificar si el usuario existe
-            $checkStmt = $pdo->prepare('SELECT id_user FROM "user" WHERE id_user = :id');
-            $checkStmt->execute([':id' => $userId]);
-            if (!$checkStmt->fetch()) {
-                throw new Exception('Usuario no encontrado');
-            }
-
-            // 1. Eliminar votos del usuario
+            // Eliminar votos
             $stmt = $pdo->prepare('DELETE FROM user_votes_control WHERE id_user = :id');
-            if (!$stmt->execute([':id' => $userId])) {
-                throw new Exception('Error al eliminar votos: ' . implode(', ', $stmt->errorInfo()));
-            }
-
-            // 2. Actualizar las fotos para desvincularlas del usuario
-            $stmt = $pdo->prepare('UPDATE photography SET id_user = NULL WHERE id_user = :id');
-            if (!$stmt->execute([':id' => $userId])) {
-                throw new Exception('Error al actualizar fotos: ' . implode(', ', $stmt->errorInfo()));
-            }
-
-            // 3. Finalmente eliminar el usuario
+            $stmt->execute([':id' => $userId]);
+            error_log("user_votes_control affected rows: " . $stmt->rowCount());
+    
+            // Eliminar usuario (la FK en photography debería poner a NULL automáticamente)
             $stmt = $pdo->prepare('DELETE FROM "user" WHERE id_user = :id');
-            if (!$stmt->execute([':id' => $userId])) {
-                throw new Exception('Error al eliminar usuario: ' . implode(', ', $stmt->errorInfo()));
-            }
-
-            $pdo->commit();
+            $stmt->execute([':id' => $userId]);
+            error_log("user affected rows: " . $stmt->rowCount());
+    
             echo json_encode(['deleted' => true]);
-
+    
         } catch (Exception $e) {
-            $pdo->rollBack();
-            error_log('Error en eliminación de usuario: ' . $e->getMessage());
             http_response_code(500);
+            error_log("Error deleting account: " . $e->getMessage());
             echo json_encode([
-                'error' => 'Error al eliminar el usuario',
+                'error' => 'Error al eliminar la cuenta',
                 'message' => $e->getMessage()
             ]);
         }

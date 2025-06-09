@@ -1,1 +1,128 @@
 /* You can add global styles to this file, and also import other style files */
+/* You can add global styles to this file, and also import other style files */
+
+body {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #1a1a1a 0%, #1e3528 40%, #234c3d 100%);
+  color: #333;
+  margin: 0;
+  padding: 0;
+  font-family: 'Quicksand', sans-serif;
+}
+
+.navbar {
+  background: rgba(255, 255, 255, 0.8) !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: 0 0 30px 30px !important;
+  margin: 0 20px 20px 20px !important;
+  padding: 15px 25px !important;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+}
+
+.navbar-brand {
+  font-family: 'Outfit', sans-serif !important;
+  font-weight: 700 !important;
+  letter-spacing: 1px !important;
+  background: linear-gradient(45deg, #2c4a3e, #3c6354);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent !important;
+  transition: all 0.3s ease !important;
+  font-size: 1.5rem !important;
+  text-transform: uppercase;
+}
+
+.navbar-brand:hover {
+  transform: translateY(-2px);
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+  background: linear-gradient(45deg, #3c6354, #4a7b69);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+.nav-link {
+  font-family: 'Outfit', sans-serif !important;
+  color: #1a1a1a !important;
+  font-weight: 600 !important;
+  padding: 10px 20px !important;
+  margin: 0 5px !important;
+  border-radius: 20px !important;
+  transition: all 0.3s ease !important;
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.nav-link:before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 100%;
+  background: linear-gradient(45deg, #2c4a3e, #3c6354);
+  transition: all 0.3s ease;
+  opacity: 0;
+  z-index: -1;
+  border-radius: 20px;
+}
+
+.nav-link:hover {
+  color: #ffffff !important;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(44, 74, 62, 0.3);
+}
+
+.nav-link:hover:before {
+  width: 100%;
+  opacity: 1;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Outfit', sans-serif;
+  color: #2c4a3e;
+}
+
+.card {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  border: none !important;
+  box-shadow: 0 8px 20px rgba(44, 74, 62, 0.1) !important;
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+}
+
+.card:hover {
+  box-shadow: 0 12px 25px rgba(44, 74, 62, 0.15) !important;
+  transform: translateY(-5px);
+}
+
+.container {
+  padding-bottom: 2rem;
+}
+
+/* Estilo para los enlaces generales */
+a {
+  color: #2c4a3e;
+  transition: all 0.3s ease;
+}
+
+a:hover {
+  color: #3c6354;
+  text-decoration: none;
+}
+
+/* Estilo para los botones */
+.btn-primary {
+  background: linear-gradient(45deg, #2c4a3e, #3c6354) !important;
+  border: none !important;
+  box-shadow: 0 4px 15px rgba(44, 74, 62, 0.2);
+  transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(44, 74, 62, 0.3);
+  background: linear-gradient(45deg, #3c6354, #4a7b69) !important;
+}
